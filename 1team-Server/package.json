@@ -1,0 +1,13 @@
+{
+  "name": "rc-car-controller",
+  "version": "3.0.0",
+  "description": "STM32 RC Car Web Controller with Radar",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "serialport": "^12.0.0"
+  }
+}
