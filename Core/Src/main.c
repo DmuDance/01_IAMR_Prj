@@ -652,9 +652,7 @@ int main(void)
           else
               RobotState_Set(STATE_ALERT);
 
-          /* 다음 스윕은 항상 새 최소값으로 시작 */
-                  min_dist = 999;
-                  min_angle = 90;
+
           break;
 
       case STATE_MOVE:
