@@ -1,0 +1,10 @@
+../Core/Src/drivers/motor.c:8:13:RF	3
+../Core/Src/drivers/motor.c:24:13:RB	3
+../Core/Src/drivers/motor.c:40:13:LF	3
+../Core/Src/drivers/motor.c:56:13:LB	3
+../Core/Src/drivers/motor.c:76:6:Motor_Init	1
+../Core/Src/drivers/motor.c:81:6:Motor_Stop	1
+../Core/Src/drivers/motor.c:89:6:Motor_Forward	1
+../Core/Src/drivers/motor.c:97:6:Motor_Backward	1
+../Core/Src/drivers/motor.c:105:6:Motor_Right	1
+../Core/Src/drivers/motor.c:113:6:Motor_Left	1

@@ -6,10 +6,12 @@ typedef enum
 {
     STATE_IDLE,
     STATE_SCAN,
+	STATE_WAIT_ECHO,
     STATE_DECIDE,
     STATE_MOVE,
     STATE_REVERSE,
-    STATE_ALERT
+    STATE_ALERT,
+	STATE_READ_ECHO,
 } RobotState_t;
 
 void Handle_State(RobotState_t state);  // ★ 이 줄 필수

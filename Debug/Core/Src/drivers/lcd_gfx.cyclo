@@ -1,0 +1,7 @@
+../Core/Src/drivers/lcd_gfx.c:17:6:LCD_FillRect	7
+../Core/Src/drivers/lcd_gfx.c:33:20:LCD_HLine	6
+../Core/Src/drivers/lcd_gfx.c:47:6:LCD_FillCircle	4
+../Core/Src/drivers/lcd_gfx.c:84:6:LCD_RoundRect	6
+../Core/Src/drivers/lcd_gfx.c:144:6:LCD_ThickLine	10
+../Core/Src/drivers/lcd_gfx.c:172:6:LCD_VLine	6
+../Core/Src/drivers/lcd_gfx.c:186:6:LCD_DrawPixel	5

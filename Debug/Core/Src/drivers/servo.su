@@ -1,0 +1,2 @@
+../Core/Src/drivers/servo.c:11:6:Servo_Init	16	static
+../Core/Src/drivers/servo.c:20:6:Servo_SetAngle	24	static

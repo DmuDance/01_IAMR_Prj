@@ -21,6 +21,8 @@
 static uint32_t last_blink_time = 0;
 static uint8_t  is_blinking = 0;
 static Expression_t saved_expr = EXPR_NEUTRAL;
+static uint32_t next_blink_interval = BLINK_INTERVAL_MS;
+static uint32_t blink_duration = BLINK_DURATION_MS;
 
 /**
  * @brief 애니메이션 초기화
@@ -31,6 +33,9 @@ void Anim_Init(void)
     /* LCD_Init()은 main.c에서 호출하므로 여기서 제외 */
     /* LCD_Clear()도 main.c에서 호출 */
     
+	srand(HAL_GetTick());  // 전원 켤 때마다 달라짐
+	next_blink_interval = 1000 + (rand() % 4000);  // 1~5초
+
     Eyes_SetExpression(EXPR_NEUTRAL);
     Eyes_Update();
     
@@ -57,13 +62,15 @@ void Blink_Update(void)
     if (!is_blinking)
     {
         /* 깜빡임 주기 도달 & 이미 눈 감은 상태가 아닐 때 */
-        if ((now - last_blink_time >= BLINK_INTERVAL_MS) &&
+        if ((now - last_blink_time >= next_blink_interval) &&
             (current != EXPR_BLINK) &&
             (current != EXPR_SLEEPY))
         {
             saved_expr = current;
             Eyes_SetExpression(EXPR_BLINK);
-            Eyes_Update();
+
+            blink_duration = 80 + (rand() % 120);  // ⭐ 눈 감는 시간 랜덤 80~200ms
+            //Eyes_Update();
             is_blinking = 1;
             last_blink_time = now;
         }
@@ -71,12 +78,21 @@ void Blink_Update(void)
     /* 깜빡임 중일 때 */
     else
     {
-        if (now - last_blink_time >= BLINK_DURATION_MS)
+        if (now - last_blink_time >= blink_duration)
         {
             Eyes_SetExpression(saved_expr);
-            Eyes_Update();
+            //Eyes_Update();
             is_blinking = 0;
             last_blink_time = now;
+
+            if ((rand() % 5) == 0)   // 20% 확률 더블 블링크
+            {
+                next_blink_interval = 100 + (rand() % 200);  // 0.1~0.3초 후 다시 깜빡
+            }
+            else
+            {
+                next_blink_interval = 1000 + (rand() % 4000); // 1~5초
+            }
         }
     }
 }
@@ -88,7 +104,7 @@ void Anim_Update(void)
 {
     /* 깜빡임 처리 */
     Blink_Update();
-    
+
     /* 표정 변경 시에만 그리기 */
     Eyes_Update();
 }

@@ -1,0 +1,15 @@
+../Core/Src/drivers/buzzer.c:117:6:Buzzer_Init	16	static
+../Core/Src/drivers/buzzer.c:128:13:Buzzer_SetFrequency	24	static
+../Core/Src/drivers/buzzer.c:152:6:Buzzer_PlayTone	16	static
+../Core/Src/drivers/buzzer.c:163:6:Buzzer_PlayMelody	16	static
+../Core/Src/drivers/buzzer.c:179:6:Buzzer_Stop	8	static
+../Core/Src/drivers/buzzer.c:191:9:Buzzer_IsPlaying	4	static
+../Core/Src/drivers/buzzer.c:197:6:Buzzer_Update	16	static
+../Core/Src/drivers/buzzer.c:235:6:Buzzer_PlayMario	8	static
+../Core/Src/drivers/buzzer.c:240:6:Buzzer_PlayAlert	8	static
+../Core/Src/drivers/buzzer.c:245:6:Buzzer_PlayElise	8	static
+../Core/Src/drivers/buzzer.c:250:6:Buzzer_PlayReset	8	static
+../Core/Src/drivers/buzzer.c:255:6:Buzzer_PlayStop	8	static
+../Core/Src/drivers/buzzer.c:260:6:Buzzer_PlayStart	8	static
+../Core/Src/drivers/buzzer.c:265:6:Buzzer_PlayOk	8	static
+../Core/Src/drivers/buzzer.c:270:6:Buzzer_PlayPing	8	static

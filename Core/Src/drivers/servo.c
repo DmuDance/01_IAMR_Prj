@@ -1,9 +1,9 @@
 #include "drivers/servo.h"
 
 /* ===== PWM 파라미터 ===== */
-#define SERVO_MIN 25     // 0.5ms
-#define SERVO_MAX 125    // 2.5ms
-#define SERVO_CENTER 75 // 1.5ms
+#define SERVO_MIN 500     // 0.5ms
+#define SERVO_MAX 2500    // 2.5ms
+#define SERVO_CENTER 1500 // 1.5ms
 
 static TIM_HandleTypeDef *servo_tim;
 static uint32_t servo_channel;

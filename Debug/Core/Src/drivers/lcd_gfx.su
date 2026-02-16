@@ -1,0 +1,7 @@
+../Core/Src/drivers/lcd_gfx.c:17:6:LCD_FillRect	24	static
+../Core/Src/drivers/lcd_gfx.c:33:20:LCD_HLine	24	static
+../Core/Src/drivers/lcd_gfx.c:47:6:LCD_FillCircle	32	static
+../Core/Src/drivers/lcd_gfx.c:84:6:LCD_RoundRect	48	static
+../Core/Src/drivers/lcd_gfx.c:144:6:LCD_ThickLine	48	static
+../Core/Src/drivers/lcd_gfx.c:172:6:LCD_VLine	24	static
+../Core/Src/drivers/lcd_gfx.c:186:6:LCD_DrawPixel	16	static

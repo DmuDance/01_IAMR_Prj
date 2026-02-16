@@ -1,0 +1,2 @@
+../Core/Src/ui_fsm.c:23:6:UI_Init	8	static
+../Core/Src/ui_fsm.c:38:6:UI_Update	64	static

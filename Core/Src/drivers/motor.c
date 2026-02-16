@@ -104,16 +104,17 @@ void Motor_Backward(void)
 
 void Motor_Right(void)
 {
-    LF(MOTOR_BACKWARD);
-    LB(MOTOR_BACKWARD);
-    RF(MOTOR_FORWARD);
-    RB(MOTOR_FORWARD);
+	 LF(MOTOR_FORWARD);
+	    LB(MOTOR_FORWARD);
+	    RF(MOTOR_BACKWARD);
+	    RB(MOTOR_BACKWARD);
 }
 
 void Motor_Left(void)
 {
-    LF(MOTOR_FORWARD);
-    LB(MOTOR_FORWARD);
-    RF(MOTOR_BACKWARD);
-    RB(MOTOR_BACKWARD);
+    LF(MOTOR_BACKWARD);
+    LB(MOTOR_BACKWARD);
+    RF(MOTOR_FORWARD);
+    RB(MOTOR_FORWARD);
+
 }

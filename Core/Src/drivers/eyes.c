@@ -1,7 +1,7 @@
 /**
  * @file eyes.c
  * @brief 눈 표정 드라이버 - 성능 최적화 버전
- * 
+ *
  * 최적화 내용:
  * 1. dirty flag로 변경 시에만 그리기
  * 2. 중복 호출 방지
@@ -12,7 +12,9 @@
 #include "drivers/lcd_st7735.h"
 #include "drivers/lcd_gfx.h"
 #include "main.h"
-
+#include "stm32f1xx_hal.h"   // MCU 시리즈에 맞게
+#define ANIM_FRAME_MS 250     //눈 애니 프레임  4 FPS (1000/250)
+extern volatile uint8_t servo_moving;
 /* ===== 색상 정의 ===== */
 #define BLACK       0x0000
 #define EYE_COLOR   0x07E0  // 녹색
@@ -23,9 +25,9 @@
 #define CY  40      // 눈 Y (중앙)
 
 /* ===== 눈 영역 크기 (클리어용) ===== */
-#define EYE_W   50
-#define EYE_H   60
-#define EYE_Y   (CY - 30)
+#define EYE_W   60
+#define EYE_H   80
+#define EYE_Y   (CY - 40)
 
 /* ===== 상태 관리 ===== */
 static Expression_t current_expr = EXPR_NEUTRAL;
@@ -56,7 +58,7 @@ static void Eye_Angry(int16_t cx, int8_t dir)
     int16_t x1 = cx + 15;
     int16_t y0 = CY - 20 + (dir < 0 ? 15 : 0);
     int16_t y1 = CY - 20 + (dir < 0 ? 0 : 15);
-    
+
     LCD_ThickLine(x0, y0, x1, y1, 4, EYE_COLOR);
 }
 
@@ -67,7 +69,7 @@ static void Eye_Sad(int16_t cx, int8_t dir)
     int16_t x1 = cx + 12;
     int16_t y0 = CY - 10 + (dir < 0 ? 0 : 8);
     int16_t y1 = CY - 10 + (dir < 0 ? 8 : 0);
-    
+
     LCD_ThickLine(x0, y0, x1, y1, 3, EYE_COLOR);
     LCD_FillRect(cx - 10, CY, 20, 4, EYE_COLOR);
 }
@@ -178,9 +180,14 @@ Expression_t Eyes_GetExpression(void)
  */
 void Eyes_Update(void)
 {
-    if (dirty)
+    static uint32_t lastTick = 0;
+    uint32_t now = HAL_GetTick();
+
+    if (dirty && (now - lastTick >= 100) && !servo_moving)
     {
         Eyes_Draw(current_expr);
+        dirty = 0;
+        lastTick = now;
     }
 }
 

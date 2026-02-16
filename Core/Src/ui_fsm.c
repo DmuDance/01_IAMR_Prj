@@ -3,30 +3,49 @@
 #include "drivers/ultrasonic.h"
 #include "robot_state.h"
 #include "drivers/lcd_st7735.h"
-#include "drivers/eyes.h"   // 🔥 추가
+//#include "drivers/eyes.h"   // 🔥 추가
+
+#define LCD_CS_HIGH_FORCE()  (GPIOB->BSRR = GPIO_PIN_12)  // ← 이 줄 추가
 
 extern uint8_t scan_angle;
 extern uint8_t start_flag;
 extern uint8_t manual_mode;
 extern uint8_t manual_command;
+extern uint16_t g_distance;
+extern void LCD_CLEAR(void);
+extern SPI_HandleTypeDef hspi2;
 
 static RobotState_t prev_state = STATE_IDLE;  // 🔥 상태 기억
+static char prev1[17] = "";
+	    static char prev2[17] = "";
+
 
 void UI_Init(void)
 {
-    LCD_Clear(COLOR_BLACK);
-    Eyes_SetExpression(EXPR_SLEEPY); // 초기 표정
-    prev_state = RobotState_Get();
+	// prev 버퍼 강제 초기화 → 다음 Update에서 반드시 출력
+
+	   // prev1[0] = '\0';
+	    //prev2[0] = '\0';
+
+	// HD44780 먼저
+	    LCD_CLEAR();
+	    HAL_Delay(5);
+	    // ST7735 나중
+	    //LCD_Clear(COLOR_BLACK);
+	    prev_state = RobotState_Get();
 }
 
 void UI_Update(void)
 {
+	static char prev1[17] = "";
+	static char prev2[17] = "";
     RobotState_t state = RobotState_Get();
-    uint16_t distance = Ultrasonic_GetDistance();
+    uint16_t distance = g_distance;
     char line1[17];
     char line2[17];
 
-    /* 🔥 상태 변경 시에만 얼굴 변경 */
+/*
+     🔥 상태 변경 시에만 얼굴 변경
     if (state != prev_state)
     {
         switch (state)
@@ -56,6 +75,7 @@ void UI_Update(void)
         }
         prev_state = state;
     }
+*/
 
     /* ===== LCD 출력 ===== */
     if (start_flag == 1)
@@ -91,8 +111,21 @@ void UI_Update(void)
     snprintf(line2, sizeof(line2),
              "D:%3dcm A:%3d%c", distance, scan_angle, 0xDF);
 
-    LCD_XY(0, 0);
-    LCD_PUTS(line1);
-    LCD_XY(0, 1);
-    LCD_PUTS(line2);
+    if (strcmp(prev1, line1) != 0) {
+        HAL_SPI_Abort(&hspi2);          // SPI 완전 중단
+        LCD_CS_HIGH_FORCE();            // CS 확실히 올림
+        LCD_XY(0, 0);
+        LCD_PUTS(line1);
+        strcpy(prev1, line1);
+        //Eyes_Invalidate();              // SPI 중단했으니 눈 다시 그리기
+    }
+
+    if (strcmp(prev2, line2) != 0) {
+        HAL_SPI_Abort(&hspi2);
+        LCD_CS_HIGH_FORCE();
+        LCD_XY(0, 1);
+        LCD_PUTS(line2);
+        strcpy(prev2, line2);
+        //Eyes_Invalidate();
+    }
 }

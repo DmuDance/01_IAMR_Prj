@@ -1,0 +1,4 @@
+../Core/Src/drivers/anim.c:31:6:Anim_Init	1
+../Core/Src/drivers/anim.c:48:6:Anim_Set	1
+../Core/Src/drivers/anim.c:56:6:Blink_Update	7
+../Core/Src/drivers/anim.c:103:6:Anim_Update	1

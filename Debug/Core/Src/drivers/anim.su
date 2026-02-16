@@ -1,0 +1,4 @@
+../Core/Src/drivers/anim.c:31:6:Anim_Init	8	static
+../Core/Src/drivers/anim.c:48:6:Anim_Set	16	static
+../Core/Src/drivers/anim.c:56:6:Blink_Update	16	static
+../Core/Src/drivers/anim.c:103:6:Anim_Update	8	static

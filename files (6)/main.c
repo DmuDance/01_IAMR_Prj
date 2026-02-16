@@ -118,13 +118,13 @@ const char* StateToStr(RobotState_t state)
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif /* __GNUC__ */
 
-PUTCHAR_PROTOTYPE
-{
-  if (ch == '\n')
-    HAL_UART_Transmit(&huart2, (uint8_t*)"\r", 1, 0xFFFF);
-  HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, 0xFFFF);
-  return ch;
-}
+//PUTCHAR_PROTOTYPE
+//{
+//  if (ch == '\n')
+//    HAL_UART_Transmit(&huart2, (uint8_t*)"\r", 1, 0xFFFF);
+//  HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, 0xFFFF);
+//  return ch;
+//}
 
 void Handle_Command(uint8_t cmd)
 {
@@ -839,6 +839,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         Handle_Command(bt_rx_char);
         HAL_UART_Receive_IT(&huart1, &bt_rx_char, 1);
     }
+}
+
+
+int _write(int file, char *ptr, int len)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, 10);
+    return len;
 }
 /* USER CODE END 4 */
 

@@ -18,6 +18,8 @@ void LCD_Clear(uint16_t color);
 void LCD_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 void LCD_WriteColorFast(uint16_t color, uint32_t count);
 void LCD_WriteBuffer(uint16_t *buf, uint32_t count);
+void LCD_DrawChar(uint16_t x, uint16_t y, char c, uint16_t fg, uint16_t bg);
+void LCD_DrawString(uint16_t x, uint16_t y, const char *str, uint16_t fg, uint16_t bg);
 
 /* ===== 색상 매크로 (RGB565) ===== */
 #define RGB565(r, g, b) (((r & 0x1F) << 11) | ((g & 0x3F) << 5) | (b & 0x1F))
@@ -32,3 +34,5 @@ void LCD_WriteBuffer(uint16_t *buf, uint32_t count);
 #define COLOR_MAGENTA   0xF81F
 
 #endif /* __LCD_ST7735_H */
+
+extern volatile uint8_t spi_busy;

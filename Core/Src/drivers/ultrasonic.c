@@ -1,71 +1,104 @@
 #include "drivers/ultrasonic.h"
 
-/* ===== 핀맵 (robot_config.h로 나중에 이동 가능) ===== */
-#define ULTRASONIC_TRIG_PORT   GPIOA
-#define ULTRASONIC_TRIG_PIN    GPIO_PIN_0
+#define ULTRASONIC_TRIG_PORT GPIOA
+#define ULTRASONIC_TRIG_PIN  GPIO_PIN_0
 
-#define ULTRASONIC_ECHO_PORT   GPIOA
-#define ULTRASONIC_ECHO_PIN    GPIO_PIN_1
+extern TIM_HandleTypeDef htim2;
 
-/* ===== 내부 변수 ===== */
-static TIM_HandleTypeDef *us_tim;
+static volatile uint32_t ic_val1 = 0;
+static volatile uint32_t ic_val2 = 0;
+static volatile uint8_t  ic_state = 0;   // 0=RISING 대기, 1=FALLING 대기
+static volatile uint16_t distance_cm = 0;
+static volatile uint8_t  distance_ready = 0;
 
-/* ===== 내부 함수 ===== */
-static void delay_us(uint16_t us)
-{
-    __HAL_TIM_SET_COUNTER(us_tim, 0);
-    while (__HAL_TIM_GET_COUNTER(us_tim) < us);
-}
-
+/* 트리거 펄스 */
 static void trig_pulse(void)
 {
     HAL_GPIO_WritePin(ULTRASONIC_TRIG_PORT, ULTRASONIC_TRIG_PIN, GPIO_PIN_SET);
-    delay_us(10);
+    for(volatile int i=0;i<200;i++);
     HAL_GPIO_WritePin(ULTRASONIC_TRIG_PORT, ULTRASONIC_TRIG_PIN, GPIO_PIN_RESET);
 }
 
-static uint32_t echo_time_us(void)
+void Ultrasonic_Init(void)
 {
-    uint32_t timeout = 30000; // 30ms
-    uint32_t start = __HAL_TIM_GET_COUNTER(us_tim);
-
-    // ECHO가 HIGH 될 때까지 대기 (타임아웃 포함)
-    while (HAL_GPIO_ReadPin(ULTRASONIC_ECHO_PORT, ULTRASONIC_ECHO_PIN) == GPIO_PIN_RESET)
-    {
-        if ((__HAL_TIM_GET_COUNTER(us_tim) - start) > timeout)
-            return 0;
-    }
-
-    __HAL_TIM_SET_COUNTER(us_tim, 0);
-
-    // ECHO가 LOW로 떨어질 때까지 대기 (타임아웃 포함)
-    while (HAL_GPIO_ReadPin(ULTRASONIC_ECHO_PORT, ULTRASONIC_ECHO_PIN) == GPIO_PIN_SET)
-    {
-        if (__HAL_TIM_GET_COUNTER(us_tim) > timeout)
-            return 0;
-    }
-
-    return __HAL_TIM_GET_COUNTER(us_tim);
+	HAL_TIM_Base_Start(&htim2);   // 타이머 카운터 시작
+	    __HAL_TIM_SET_CAPTUREPOLARITY(&htim2, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+	    HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
 }
 
-/* ===== 외부 함수 ===== */
-
-void Ultrasonic_Init(TIM_HandleTypeDef *htim)
+void Ultrasonic_Trigger(void)
 {
-    us_tim = htim;
-    HAL_TIM_Base_Start(us_tim);
-}
-
-uint16_t Ultrasonic_GetDistance(void)
-{
-    uint32_t echo_us;
-
+    distance_ready = 0;
     trig_pulse();
-    echo_us = echo_time_us();
-
-    if (echo_us < 240 || echo_us > 23000)
-        return 0;
-
-    /* cm 단위 변환 */
-    return (uint16_t)(echo_us * 0.017);
 }
+
+uint16_t Ultrasonic_Read(void)
+{
+    if(distance_ready)
+    {
+        distance_ready = 0;
+        return distance_cm;
+    }
+    return 999;
+}
+void Ultrasonic_IC_Callback(TIM_HandleTypeDef *htim)
+{
+    if(ic_state == 0)  // RISING 감지
+    {
+        ic_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+        ic_state = 1;
+        __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_FALLING);
+    }
+    else  // FALLING 감지 → 펄스폭 계산
+    {
+        ic_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+
+        uint32_t diff;
+        if(ic_val2 >= ic_val1)
+            diff = ic_val2 - ic_val1;
+        else
+            diff = (0xFFFF - ic_val1 + ic_val2);
+
+        // 노이즈 제거 후 즉시 플래그 설정 (printf 제거!)
+        if(diff > 100 && diff < 30000)
+        {
+            distance_cm = diff / 58;
+            distance_ready = 1;  // ← 여기가 핵심!
+        }
+
+        ic_state = 0;
+        __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+    }
+}
+/* 인터럽트 콜백 */
+/*void Ultrasonic_IC_Callback(TIM_HandleTypeDef *htim)
+{
+
+    if(ic_state == 0)  // RISING 잡음
+    {
+        ic_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+        ic_state = 1;
+
+        __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_FALLING);
+    }
+    else  // FALLING 잡음 → 펄스폭 계산
+    {
+        ic_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+
+        uint32_t diff;
+        if(ic_val2 >= ic_val1)
+            diff = ic_val2 - ic_val1;
+        else
+            diff = (0xFFFF - ic_val1 + ic_val2);
+        printf("ic_val1=%lu, ic_val2=%lu, diff=%lu\n", ic_val1, ic_val2, diff);
+        if(diff > 100 && diff < 30000)  // 노이즈 제거
+        {
+            distance_cm = diff / 58;
+            distance_ready = 1;
+        }
+
+        ic_state = 0;
+        __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_2, TIM_INPUTCHANNELPOLARITY_RISING);
+    }
+
+}*/

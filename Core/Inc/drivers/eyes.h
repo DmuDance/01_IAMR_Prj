@@ -16,8 +16,8 @@ typedef enum {
     EXPR_ANGRY,         // 화남
     EXPR_SLEEPY,        // 졸림
     EXPR_SAD,           // 슬픔
-    EXPR_LOOK_LEFT,     // 왼쪽 보기
-    EXPR_LOOK_RIGHT,    // 오른쪽 보기
+    EXPR_LOOK_LEFT,     // 스캔
+    EXPR_LOOK_RIGHT     // 스캔
 } Expression_t;
 
 /* ===== API ===== */
