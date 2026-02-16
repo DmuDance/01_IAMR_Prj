@@ -5035,13 +5035,13 @@ int main(void)
 
       case STATE_SCAN:
       {
-          if (HAL_GetTick() - last_scan_tick < 80) //150
+          if (HAL_GetTick() - last_scan_tick < 100) //150
  8002260:	f001 fa24 	bl	80036ac <HAL_GetTick>
  8002264:	4602      	mov	r2, r0
  8002266:	4b23      	ldr	r3, [pc, #140]	@ (80022f4 <main+0x34c>)
  8002268:	681b      	ldr	r3, [r3, #0]
  800226a:	1ad3      	subs	r3, r2, r3
- 800226c:	2b4f      	cmp	r3, #79	@ 0x4f
+ 800226c:	2b63      	cmp	r3, #99	@ 0x63
  800226e:	f240 8153 	bls.w	8002518 <main+0x570>
               break;
 

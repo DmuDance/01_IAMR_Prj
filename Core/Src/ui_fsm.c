@@ -14,10 +14,12 @@ extern uint8_t manual_command;
 extern uint16_t g_distance;
 extern void LCD_CLEAR(void);
 extern SPI_HandleTypeDef hspi2;
+extern volatile uint8_t spi_busy;
+extern volatile uint8_t spi_dma_busy;
 
 static RobotState_t prev_state = STATE_IDLE;  // 🔥 상태 기억
 static char prev1[17] = "";
-	    static char prev2[17] = "";
+static char prev2[17] = "";
 
 
 void UI_Init(void)
@@ -37,13 +39,17 @@ void UI_Init(void)
 
 void UI_Update(void)
 {
-	static char prev1[17] = "";
-	static char prev2[17] = "";
+//	static char prev1[17] = "";
+//	static char prev2[17] = "";
     RobotState_t state = RobotState_Get();
     uint16_t distance = g_distance;
     char line1[17];
     char line2[17];
-
+    /* ST7735 전송 중에는 I2C LCD 갱신을 잠시 미뤄 버스 충돌/지터 방지 */
+    if (spi_busy || spi_dma_busy)
+    {
+        return;
+    }
 /*
      🔥 상태 변경 시에만 얼굴 변경
     if (state != prev_state)
@@ -84,6 +90,8 @@ void UI_Update(void)
         {
             case STATE_IDLE:    snprintf(line1, sizeof(line1), "AUTO : IDLE   "); break;
             case STATE_SCAN:    snprintf(line1, sizeof(line1), "AUTO : SCAN   "); break;
+            case STATE_WAIT_ECHO: snprintf(line1, sizeof(line1), "AUTO : WAIT   "); break;
+            case STATE_READ_ECHO: snprintf(line1, sizeof(line1), "AUTO : READ   "); break;
             case STATE_DECIDE:  snprintf(line1, sizeof(line1), "AUTO : DECIDE "); break;
             case STATE_MOVE:    snprintf(line1, sizeof(line1), "AUTO : MOVE   "); break;
             case STATE_ALERT:   snprintf(line1, sizeof(line1), "AUTO : ALERT  "); break;
@@ -112,7 +120,7 @@ void UI_Update(void)
              "D:%3dcm A:%3d%c", distance, scan_angle, 0xDF);
 
     if (strcmp(prev1, line1) != 0) {
-        HAL_SPI_Abort(&hspi2);          // SPI 완전 중단
+       // HAL_SPI_Abort(&hspi2);          // SPI 완전 중단
         LCD_CS_HIGH_FORCE();            // CS 확실히 올림
         LCD_XY(0, 0);
         LCD_PUTS(line1);
@@ -121,7 +129,7 @@ void UI_Update(void)
     }
 
     if (strcmp(prev2, line2) != 0) {
-        HAL_SPI_Abort(&hspi2);
+      //  HAL_SPI_Abort(&hspi2);
         LCD_CS_HIGH_FORCE();
         LCD_XY(0, 1);
         LCD_PUTS(line2);

@@ -566,6 +566,12 @@ int main(void)
               break;
 
           last_scan_tick = HAL_GetTick();
+          /* 새 스캔 사이클 시작점(30도, 우향)에서 최소값 리셋 */
+                  if (scan_angle == 30 && scan_dir == 1)
+                  {
+                      min_dist = 999;
+                      min_angle = 90;
+                  }
 
           Servo_SetAngle(scan_angle);
 
@@ -645,6 +651,10 @@ int main(void)
               RobotState_Set(STATE_MOVE);
           else
               RobotState_Set(STATE_ALERT);
+
+          /* 다음 스윕은 항상 새 최소값으로 시작 */
+                  min_dist = 999;
+                  min_angle = 90;
           break;
 
       case STATE_MOVE:
