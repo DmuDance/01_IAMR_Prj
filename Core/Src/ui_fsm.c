@@ -3,9 +3,9 @@
 #include "drivers/ultrasonic.h"
 #include "robot_state.h"
 #include "drivers/lcd_st7735.h"
-//#include "drivers/eyes.h"
+//#include "drivers/eyes.h"   // 🔥 추가
 
-#define LCD_CS_HIGH_FORCE()  (GPIOB->BSRR = GPIO_PIN_12)
+#define LCD_CS_HIGH_FORCE()  (GPIOB->BSRR = GPIO_PIN_12)  // ← 이 줄 추가
 
 extern uint8_t scan_angle;
 extern uint8_t start_flag;
@@ -17,7 +17,7 @@ extern SPI_HandleTypeDef hspi2;
 extern volatile uint8_t spi_busy;
 extern volatile uint8_t spi_dma_busy;
 
-static RobotState_t prev_state = STATE_IDLE;
+static RobotState_t prev_state = STATE_IDLE;  // 🔥 상태 기억
 static char prev1[17] = "";
 static char prev2[17] = "";
 
@@ -51,7 +51,7 @@ void UI_Update(void)
     }
 
 /*
-     상태 변경 시에만 얼굴 변경
+     🔥 상태 변경 시에만 얼굴 변경
     if (state != prev_state)
     {
         switch (state)
@@ -69,7 +69,7 @@ void UI_Update(void)
                 break;
 
             case STATE_ALERT:
-                Eyes_SetExpression(EXPR_ANGRY);
+                Eyes_SetExpression(EXPR_ANGRY);   // 🔥 화난 표정
                 break;
 
             case STATE_REVERSE:

@@ -81,7 +81,7 @@ uint16_t last_valid_dist = 50;
 static uint32_t last_ping_time = 0;
 static uint32_t next_ping_interval = 0;
 
-static uint32_t echo_start_time = 0;
+static uint32_t echo_start_time = 0;  // ← 여기 추가!
 
 static uint16_t read_stable_distance(void)
 {
@@ -108,9 +108,9 @@ static uint16_t read_stable_distance(void)
     return (d[0]+d[1])/2;
 }
 
-extern volatile uint8_t spi_dma_busy;
+extern volatile uint8_t spi_dma_busy;  // 루프 위쪽 선언부에 추가
       extern volatile uint8_t spi_dma_done;
-      extern volatile uint8_t spi_busy;
+      extern volatile uint8_t spi_busy;   // ← 이 줄 추가
 
       volatile uint8_t servo_moving = 0;
       volatile uint32_t servo_move_tick = 0;
@@ -216,7 +216,7 @@ const char* StateToStr(RobotState_t state)
     {
     case STATE_IDLE:   return "IDLE";
     case STATE_SCAN:   return "SCAN";
-    case STATE_WAIT_ECHO: return "WAIT_ECHO";
+    case STATE_WAIT_ECHO: return "WAIT_ECHO";  // ⭐ 여기
     case STATE_DECIDE: return "DECIDE";
     case STATE_MOVE:   return "MOVE";
     case STATE_ALERT:  return "ALERT";
@@ -589,7 +589,7 @@ int main(void)
           if (HAL_GetTick() - echo_start_time < 20) //80
               break;
 
-          servo_moving = 0;   // 서보 안정화 완료
+          servo_moving = 0;   // ← 서보 안정화 완료
 
           Ultrasonic_Trigger();
           echo_start_time = HAL_GetTick();
@@ -1071,7 +1071,7 @@ static void MX_DMA_Init(void)
     HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 1, 0);  // LCD DMA (2→1)
     HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
-    HAL_NVIC_SetPriority(TIM2_IRQn,          2, 0);  // 초음파
+    HAL_NVIC_SetPriority(TIM2_IRQn,          2, 0);  // 초음파 (추가)
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
 
     HAL_NVIC_SetPriority(USART2_IRQn,        0, 0);  // 블루투스 (1→3)
