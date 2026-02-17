@@ -68,11 +68,18 @@ uint8_t bt_rx_char;
 
 uint8_t start_flag = 0;     // 자동운전 ON/OFF
 uint8_t manual_mode = 0;   // 1 = 수동 조작 중
-uint8_t rx_char;
+//uint8_t rx_char;
 //uint8_t auto_mode = 0;
 
 uint16_t min_dist = 999;
 uint8_t  min_angle = 90;
+
+#define UART_RX_BUFFER_SIZE 64
+
+uint8_t dma_rx_buffer[UART_RX_BUFFER_SIZE];
+uint8_t uart_ring_buffer[UART_RX_BUFFER_SIZE];
+
+volatile uint16_t dma_old_pos = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -226,6 +233,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  HAL_UART_Receive_DMA(&huart2, dma_rx_buffer, UART_RX_BUFFER_SIZE);
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
@@ -250,7 +258,7 @@ int main(void)
 
   /* UART 시작 */
   printf("시작하시려면 t 키를 눌러주세요.\r\n");
-  HAL_UART_Receive_IT(&huart2, &rx_char, 1);
+  //HAL_UART_Receive_IT(&huart2, &rx_char, 1);
   HAL_UART_Receive_IT(&huart1, &bt_rx_char, 1);
 
   /* LCD 초기화 */
@@ -266,6 +274,7 @@ int main(void)
 
   while (1)
   {
+	  UART_Process();
       /* ============================================
        * ⭐ 부저 업데이트 (매 루프 필수!)
        * 이게 없으면 멜로디가 재생되지 않음
@@ -826,15 +835,20 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    /* ===== TeraTerm (USART2) ===== */
-    if (huart->Instance == USART2)
-    {
-        Handle_Command(rx_char);
-        HAL_UART_Receive_IT(&huart2, &rx_char, 1);
-    }
-
-    /* ===== Bluetooth (USART1) ===== */
-    else if (huart->Instance == USART1)
+//    /* ===== TeraTerm (USART2) ===== */
+//    if (huart->Instance == USART2)
+//    {
+//        Handle_Command(rx_char);
+//        HAL_UART_Receive_IT(&huart2, &rx_char, 1);
+//    }
+//
+//    /* ===== Bluetooth (USART1) ===== */
+//    else if (huart->Instance == USART1)
+//    {
+//        Handle_Command(bt_rx_char);
+//        HAL_UART_Receive_IT(&huart1, &bt_rx_char, 1);
+//    }
+if (huart->Instance == USART1)
     {
         Handle_Command(bt_rx_char);
         HAL_UART_Receive_IT(&huart1, &bt_rx_char, 1);
@@ -846,6 +860,47 @@ int _write(int file, char *ptr, int len)
 {
     HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, 10);
     return len;
+}
+
+void UART_Process(void)
+{
+    uint16_t dma_pos = UART_RX_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(huart2.hdmarx);
+
+    if(dma_pos != dma_old_pos)
+    {
+        if(dma_pos > dma_old_pos)
+        {
+            for(uint16_t i = dma_old_pos; i < dma_pos; i++)
+            {
+                Handle_Command(dma_rx_buffer[i]);
+            }
+        }
+        else
+        {
+            // 버퍼가 한 바퀴 돈 경우
+            for(uint16_t i = dma_old_pos; i < UART_RX_BUFFER_SIZE; i++)
+            {
+                Handle_Command(dma_rx_buffer[i]);
+            }
+            for(uint16_t i = 0; i < dma_pos; i++)
+            {
+                Handle_Command(dma_rx_buffer[i]);
+            }
+        }
+
+        dma_old_pos = dma_pos;
+    }
+}
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if(huart->Instance == USART1)
+    {
+        if(huart->ErrorCode & HAL_UART_ERROR_ORE)
+        {
+            __HAL_UART_CLEAR_OREFLAG(huart);
+            HAL_UART_Receive_IT(&huart1, &bt_rx_char, 1);
+        }
+    }
 }
 /* USER CODE END 4 */
 

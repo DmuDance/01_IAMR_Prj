@@ -53,6 +53,7 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
 int delay = 0;
@@ -385,7 +386,6 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART2_UART_Init();
-  HAL_UART_Receive_IT(&huart2, &rx_char, 1);
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
@@ -1060,19 +1060,18 @@ static void MX_USART2_UART_Init(void)
   */
 static void MX_DMA_Init(void)
 {
-    __HAL_RCC_DMA1_CLK_ENABLE();
 
-    HAL_NVIC_SetPriority(SPI2_IRQn,          3, 0);  // SPI
-    HAL_NVIC_EnableIRQ(SPI2_IRQn);
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
 
-    HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 1, 0);  // LCD DMA (2→1)
-    HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
+  /* DMA interrupt init */
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
+  /* DMA1_Channel6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
 
-    HAL_NVIC_SetPriority(TIM2_IRQn,          2, 0);  // 초음파 (추가)
-    HAL_NVIC_EnableIRQ(TIM2_IRQn);
-
-    HAL_NVIC_SetPriority(USART2_IRQn,        0, 0);  // 블루투스 (1→3)
-    HAL_NVIC_EnableIRQ(USART2_IRQn);
 }
 
 /**
