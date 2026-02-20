@@ -80,6 +80,9 @@ uint8_t dma_rx_buffer[UART_RX_BUFFER_SIZE];
 uint8_t uart_ring_buffer[UART_RX_BUFFER_SIZE];
 
 volatile uint16_t dma_old_pos = 0;
+
+volatile uint8_t cmd_flag = 0;
+volatile uint8_t cmd_data = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/

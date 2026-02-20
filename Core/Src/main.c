@@ -52,7 +52,20 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
+UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart3_rx;
+
 /* USER CODE BEGIN PV */
+#define UART_RX_BUF_SIZE 256
+
+uint8_t uart2_rx_buf[UART_RX_BUF_SIZE];
+uint16_t uart2_old_pos = 0;
+
+uint8_t uart3_rx_buf[UART_RX_BUF_SIZE];
+uint16_t uart3_old_pos = 0;
+
 int delay = 0;
 int value = 0;
 
@@ -60,13 +73,9 @@ static RobotState_t prevState = STATE_IDLE;
 int8_t scan_dir = 1;
 uint8_t scan_angle = 30;
 uint32_t last_scan_tick = 0;
-//uint8_t bt_rx_char;
-
-
 
 uint8_t start_flag = 0;
 uint8_t manual_mode = 0;
-volatile uint8_t rx_char;
 
 uint16_t min_dist = 999;
 uint8_t  min_angle = 90;
@@ -79,7 +88,7 @@ uint16_t last_valid_dist = 50;
 static uint32_t last_ping_time = 0;
 static uint32_t next_ping_interval = 0;
 
-static uint32_t echo_start_time = 0;  // ← 여기 추가!
+static uint32_t echo_start_time = 0;
 
 static uint16_t read_stable_distance(void)
 {
@@ -106,16 +115,12 @@ static uint16_t read_stable_distance(void)
     return (d[0]+d[1])/2;
 }
 
-extern volatile uint8_t spi_dma_busy;  // 루프 위쪽 선언부에 추가
-      extern volatile uint8_t spi_dma_done;
-      extern volatile uint8_t spi_busy;   // ← 이 줄 추가
+extern volatile uint8_t spi_dma_busy;
+extern volatile uint8_t spi_dma_done;
+extern volatile uint8_t spi_busy;
 
-      volatile uint8_t servo_moving = 0;
-      volatile uint32_t servo_move_tick = 0;
-
-      volatile uint8_t rx_flag = 0;
-      volatile char rx_data;
-
+volatile uint8_t servo_moving = 0;
+volatile uint32_t servo_move_tick = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -127,6 +132,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void Set_LED_By_State(RobotState_t state);
 void I2C_ScanAddresses(void);
@@ -222,20 +228,6 @@ const char* StateToStr(RobotState_t state)
     }
 }
 
-#ifdef __GNUC__
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif
-
-PUTCHAR_PROTOTYPE
-{
-  if (ch == '\n')
-    HAL_UART_Transmit(&huart2, (uint8_t*)"\r", 1, 0xFFFF);
-  HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, 0xFFFF);
-  return ch;
-}
-
 void I2C_ScanAddresses(void) {
     HAL_StatusTypeDef result;
     uint8_t i;
@@ -254,6 +246,7 @@ void I2C_ScanAddresses(void) {
 
 void Handle_Command(uint8_t cmd)
 {
+	printf("RX: %c (%d)\r\n", cmd, cmd);
     switch (cmd)
     {
     case 't':
@@ -386,7 +379,15 @@ int main(void)
   MX_TIM3_Init();
   MX_SPI2_Init();
   MX_I2C1_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  // UART3 초기화 (GUI 설정 전까지 수동 호출)
+  MX_USART3_UART_Init();
+
+  // USB(UART2)와 블루투스(UART3) 모두 DMA 수신 시작
+  HAL_UART_Receive_DMA(&huart2, uart2_rx_buf, UART_RX_BUF_SIZE);
+  HAL_UART_Receive_DMA(&huart3, uart3_rx_buf, UART_RX_BUF_SIZE);
+
  I2C_ScanAddresses();
 //
 
@@ -417,7 +418,7 @@ int main(void)
   HAL_Delay(500);
 
   printf("시작하시려면 t 키를 눌러주세요.\r\n");
-  HAL_UART_Receive_IT(&huart2, &rx_char, 1);
+  //HAL_UART_Receive_IT(&huart2, &rx_char, 1);
 
 //  LCD_Init();
 //  LCD_Clear(COLOR_BLACK);
@@ -428,14 +429,47 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  
+  // 이미 위에서 HAL_UART_Receive_DMA가 호출되었으므로 여기서는 중복 호출하지 않습니다.
 
   while (1)
   {
-	  if(rx_flag)
-	  {
-	      rx_flag = 0;
-	      Handle_Command(rx_data);
-	  }
+      // --- [1] UART2 (USB) 수신 처리 ---
+      uint16_t pos2 = UART_RX_BUF_SIZE - __HAL_DMA_GET_COUNTER(huart2.hdmarx);
+      if (pos2 != uart2_old_pos) {
+          if (pos2 > uart2_old_pos) {
+              for (uint16_t i = uart2_old_pos; i < pos2; i++) Handle_Command(uart2_rx_buf[i]);
+          } else {
+              for (uint16_t i = uart2_old_pos; i < UART_RX_BUF_SIZE; i++) Handle_Command(uart2_rx_buf[i]);
+              for (uint16_t i = 0; i < pos2; i++) Handle_Command(uart2_rx_buf[i]);
+          }
+          uart2_old_pos = pos2;
+      }
+
+      // --- [2] UART3 (Bluetooth) 수신 처리 ---
+      uint16_t pos3 = UART_RX_BUF_SIZE - __HAL_DMA_GET_COUNTER(huart3.hdmarx);
+      if (pos3 != uart3_old_pos) {
+          if (pos3 > uart3_old_pos) {
+              for (uint16_t i = uart3_old_pos; i < pos3; i++) Handle_Command(uart3_rx_buf[i]);
+          } else {
+              for (uint16_t i = uart3_old_pos; i < UART_RX_BUF_SIZE; i++) Handle_Command(uart3_rx_buf[i]);
+              for (uint16_t i = 0; i < pos3; i++) Handle_Command(uart3_rx_buf[i]);
+          }
+          uart3_old_pos = pos3;
+      }
+
+      // --- [3] UART 에러 복구 ---
+      if (huart2.ErrorCode != HAL_UART_ERROR_NONE) {
+          __HAL_UART_CLEAR_OREFLAG(&huart2);
+          huart2.RxState = HAL_UART_STATE_READY;
+          HAL_UART_Receive_DMA(&huart2, uart2_rx_buf, UART_RX_BUF_SIZE);
+      }
+      if (huart3.ErrorCode != HAL_UART_ERROR_NONE) {
+          __HAL_UART_CLEAR_OREFLAG(&huart3);
+          huart3.RxState = HAL_UART_STATE_READY;
+          HAL_UART_Receive_DMA(&huart3, uart3_rx_buf, UART_RX_BUF_SIZE);
+      }
+
       RobotState_t currentState = RobotState_Get();
       Set_LED_By_State(currentState);
 
@@ -1018,6 +1052,63 @@ static void MX_TIM3_Init(void)
 }
 
 /**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(USART2_IRQn);
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+void MX_USART3_UART_Init(void)
+{
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
   * Enable DMA controller clock
   */
 static void MX_DMA_Init(void)
@@ -1030,6 +1121,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Channel5_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
+  /* DMA1_Channel6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
 
 }
 
@@ -1078,18 +1172,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : USART_TX_Pin */
-  GPIO_InitStruct.Pin = USART_TX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(USART_TX_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : USART_RX_Pin */
-  GPIO_InitStruct.Pin = USART_RX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(USART_RX_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pin : PA5 */
   GPIO_InitStruct.Pin = GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
@@ -1103,6 +1185,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_11;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : GPIOB_Pin */
@@ -1131,29 +1219,84 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+void MX_USART3_UART_Init(void)
+{
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 115200;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
 /* USER CODE BEGIN 4 */
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) { if(htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) { Ultrasonic_IC_Callback(htim); } }
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	 if(huart->Instance == USART2)   // 혹시 여러 UART 있을 경우 대비
-	    {
-	        rx_data = rx_char;   // 받은 값 저장
-	        rx_flag = 1;         // main에게 알림
-	        HAL_UART_Receive_IT(&huart2, &rx_char, 1);  // 다시 수신 대기
-	    }
-}
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
-{
-    if(huart->ErrorCode & HAL_UART_ERROR_ORE)
-    {
-        __HAL_UART_CLEAR_OREFLAG(huart);
-        HAL_UART_Receive_IT(&huart2, &rx_char, 1);
-    }
-}
+
 int _write(int file, char *ptr, int len)
 {
-    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+    // UART 에러 상태(Overrun 등) 확인 및 강제 클리어
+    if (__HAL_UART_GET_FLAG(&huart2, UART_FLAG_ORE) != RESET) {
+        __HAL_UART_CLEAR_OREFLAG(&huart2);
+    }
+    
+    // UART가 Ready가 아니면 상태 강제 초기화 (송신 보장)
+    if (huart2.gState != HAL_UART_STATE_READY) {
+        huart2.gState = HAL_UART_STATE_READY;
+    }
+    
+    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, 100);
     return len;
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if(huart->Instance == USART3)
+    {
+        // 에러 플래그 확인 및 클리어
+        uint32_t err = HAL_UART_GetError(huart);
+        if (err & HAL_UART_ERROR_ORE) {
+            __HAL_UART_CLEAR_OREFLAG(huart);
+        }
+        
+        // UART 상태 강제 초기화 (송수신 가능 상태로)
+        huart->gState = HAL_UART_STATE_READY;
+        huart->RxState = HAL_UART_STATE_READY;
+        
+        // DMA 수신 재시작
+        HAL_UART_Receive_DMA(&huart3, uart3_rx_buf, UART_RX_BUF_SIZE);
+    }
 }
 /* USER CODE END 4 */
 
